@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>性能测试</title>
+    <style>
+      * {
+        padding: 0;
+        margin: 0;
+      }
+
+      input {
+        font-size: 18px;
+      }
+
+      button {
+        background: #66aaff;
+        color: white;
+        padding: 6px 16px;
+        font-size: 16px;
+      }
+
+      table {
+        border: 1px solid #666;
+      }
+
+      td {
+        border: 1px solid #999;
+        padding: 6px;
+        font-size: 16px;
+        min-width: 100px;
+      }
+
+      .float-box {
+        width: 49%;
+        float: left;
+      }
+
+      #tr-average {
+        background-color: #99ffaa;
+      }
+
+      #tr-variance {
+        background-color: #99ccff;
+      }
+
+      .code{
+        font-size: 20px;
+        background-color: #eee;
+        margin-bottom: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>斐波那契数列递归算法代码执行性能测试(单位：ms)</h1>
+    <div class="float-box">
+      <h2>求第<input id="num" value="30" />项</h2>
+      <table id="resultList">
+        <thead>
+          <tr>
+            <td>语言</td>
+            <td>JavaScript</td>
+            <td>Asm.js</td>
+            <td>Wasm</td>
+          </tr>
+        </thead>
+        <tbody id="resultBody">
+          <tr id="tr-average">
+            <td>平均时间</td>
+            <td id="ajs"></td>
+            <td id="aasm"></td>
+            <td id="awasm"></td>
+          </tr>
+          <tr id="tr-min">
+            <td>最短时间</td>
+            <td id="minjs"></td>
+            <td id="minasm"></td>
+            <td id="minwasm"></td>
+          </tr>
+          <tr id="tr-max">
+            <td>最长时间</td>
+            <td id="maxjs"></td>
+            <td id="maxasm"></td>
+            <td id="maxwasm"></td>
+          </tr>
+          <tr id="tr-variance">
+            <td>方差</td>
+            <td id="vjs"></td>
+            <td id="vasm"></td>
+            <td id="vwasm"></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div>
+        <button id="sureBtn">计算</button>&nbsp;
+        <button id="clearBtn">
+          清除
+        </button>
+      </div>
+    </div>
+    <div class="float-box">
+      <h2>测试代码：</h2>
+      <h3>JavaScript</h3>
+      <div class="code">
+        <pre><code>
+function fibonacciJS(num) {
+    if (num <= 1) {
+        return 1;
+    }
+    return fibonacciJS(num - 1) + fibonacciJS(num - 2);
+}</code></pre>
+      </div>
+      <h3>Asm.js</h3>
+      <div class="code">
+        <pre><code>
+function fibonacciAsm(num) {
+    num = num | 0;
+    if (num <= 1) {
+        return 1;
+    }
+    return (fibonacciJS(num - 1) | 0) + (fibonacciJS(num - 2) | 0);
+}</code></pre>
+      </div>
+      <h3>C++</h3>
+      <div class="code">
+        <pre>
+        <code>
+int EMSCRIPTEN_KEEPALIVE fibonacci(int num) {
+    if(num <= 1) {
+        return 1;
+    }
+    return fibonacci(num - 1) + fibonacci(num - 2);
+}</code></pre>
+      </div>
+    </div>
+
+    <script src="fibonacci.js"></script>
+    <script>
+      function fibonacciJS(num) {
+        if (num <= 1) {
+          return 1;
+        }
+        return fibonacciJS(num - 1) + fibonacciJS(num - 2);
+      }
+
+      function fibonacciAsm(num) {
+        num = num | 0;
+        if (num <= 1) {
+          return 1;
+        }
+        return (fibonacciJS(num - 1) | 0) + (fibonacciJS(num - 2) | 0);
+      }
+
+      let fibonacciWasm;
+
+      let jsTimes = [],
+        asmTimes = [],
+        wasmTimes = [];
+      let count = 0;
+      const sureBtn = document.getElementById("sureBtn");
+      const clearBtn = document.getElementById("clearBtn");
+      const averageLine = document.getElementById("tr-average");
+      const minLine = document.getElementById("tr-min");
+      const maxLine = document.getElementById("tr-max");
+      const varianceLine = document.getElementById("tr-variance");
+      const resultList = document.getElementById("resultList");
+      const resultBody = document.getElementById("resultBody");
+
+      sureBtn.onclick = () => {
+        const times = document.getElementById("num").value * 1;
+        let time1 = performance.now();
+        fibonacciJS(times);
+        let time2 = performance.now();
+        fibonacciAsm(times);
+        let time3 = performance.now();
+        fibonacciWasm(times);
+        let time4 = performance.now();
+        jsTimes.push(time2 - time1);
+        asmTimes.push(time3 - time2);
+        wasmTimes.push(time4 - time3);
+        count++;
+        resultBody.innerHTML += `<tr>
+          <td>时间${count}</td>
+          <td>${jsTimes[count - 1]}</td>
+          <td>${asmTimes[count - 1]}</td>
+          <td>${wasmTimes[count - 1]}</td>
+        </tr>`;
+        resultList.deleteRow(count);
+        resultList.deleteRow(count);
+        resultList.deleteRow(count);
+        resultList.deleteRow(count);
+        resultBody.appendChild(averageLine);
+        resultBody.appendChild(minLine);
+        resultBody.appendChild(maxLine);
+        resultBody.appendChild(varianceLine);
+
+        let sumJ = 0,
+          sumA = 0,
+          sumW = 0,
+          minA = 0,
+          minJ = 0,
+          minW = 0,
+          maxA = 0,
+          maxJ = 0,
+          maxW = 0,
+          vJ = 0,
+          vA = 0,
+          vW = 0;
+        for (let i = 0; i < count; i++) {
+          sumJ += jsTimes[i];
+          sumA += asmTimes[i];
+          sumW += wasmTimes[i];
+          maxA = Math.max(maxA, asmTimes[i]);
+          maxJ = Math.max(maxJ, jsTimes[i]);
+          maxW = Math.max(maxW, wasmTimes[i]);
+          minA = Math.min(minA, asmTimes[i]) || asmTimes[i];
+          minJ = Math.min(minJ, jsTimes[i]) || jsTimes[i];
+          minW = Math.min(minW, wasmTimes[i]) || wasmTimes[i];
+        }
+        let aJ = sumJ / count;
+        let aA = sumA / count;
+        let aW = sumW / count;
+        document.getElementById("ajs").innerText = aJ;
+        document.getElementById("aasm").innerText = aA;
+        document.getElementById("awasm").innerText = aW;
+        sumA = sumJ = sumW = 0;
+        for (let i = 0; i < count; i++) {
+          sumJ += (jsTimes[i] - aJ) * (jsTimes[i] - aJ);
+          sumA += (asmTimes[i] - aA) * (asmTimes[i] - aA);
+          sumW += (wasmTimes[i] - aW) * (wasmTimes[i] - aW);
+        }
+        document.getElementById("vjs").innerText = sumJ / count;
+        document.getElementById("vasm").innerText = sumA / count;
+        document.getElementById("vwasm").innerText = sumW / count;
+
+        document.getElementById("maxjs").innerText = maxJ;
+        document.getElementById("maxasm").innerText = maxA;
+        document.getElementById("maxwasm").innerText = maxW;
+        document.getElementById("minjs").innerText = minJ;
+        document.getElementById("minasm").innerText = minA;
+        document.getElementById("minwasm").innerText = minW;
+      };
+
+      clearBtn.onclick = () => {
+        jsTimes = [];
+        asmTimes = [];
+        wasmTimes = [];
+        for (let i = 0; i < count; i++) {
+          resultList.deleteRow(1);
+        }
+        count = 0;
+        document.getElementById("vjs").innerText = "";
+        document.getElementById("vasm").innerText = "";
+        document.getElementById("vwasm").innerText = "";
+        document.getElementById("maxjs").innerText = "";
+        document.getElementById("maxasm").innerText = "";
+        document.getElementById("maxwasm").innerText = "";
+        document.getElementById("minjs").innerText = "";
+        document.getElementById("minasm").innerText = "";
+        document.getElementById("minwasm").innerText = "";
+        document.getElementById("ajs").innerText = "";
+        document.getElementById("aasm").innerText = "";
+        document.getElementById("awasm").innerText = "";
+      };
+
+      const times = 30;
+      Module.onRuntimeInitialized = () => {
+        fibonacciWasm = Module.cwrap("fibonacci", "number", ["number"]);
+      };
+    </script>
+  </body>
+</html>
